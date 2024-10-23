@@ -16,35 +16,35 @@ class Truck:
         self.fuel_ratio = fuel_ratio
         self.max_load = max_load
         self.dimension = dimension
-        self.route = [] 
+        self.route = []
         self.load = 0
 
 def calculate_shipping_cost(product, route, distances):
     total_distance = 0
     current_location = "Depot"  # semua truck dimulai dari depot
-    
-    for destination in route: 
+
+    for destination in route:
         if current_location in distances and destination in distances[current_location]:
             total_distance += distances[current_location][destination] #berarti ngitung shipping costnya berdasarkan rute (lebih cuan)
         else:
             print(f"Error: jarak dari {current_location} ke {destination} tidak ada") #gak ada di dictionary
-            return 0  
+            return 0
         current_location = destination
-    
+
     return product.weight * total_distance * product.dimension
 
 def calculate_fuel_cost(truck, route, distances):
     total_distance = 0
     current_location = "Depot"  # semua truck dimulai dari depot
-    
+
     for destination in route:
         if current_location in distances and destination in distances[current_location]:
             total_distance += distances[current_location][destination]
         else:
             print(f"Error: jarak dari {current_location} ke {destination} tidak ada")
-            return 0 
+            return 0
         current_location = destination
-        
+
     return truck.fuel_ratio * total_distance
 
 def fitness(chromosome, products, trucks, distances): #1, 2, 3, 2, 1, 4, 4, 1, 3, 2
@@ -53,7 +53,7 @@ def fitness(chromosome, products, trucks, distances): #1, 2, 3, 2, 1, 4, 4, 1, 3
     for truck in trucks:
         truck.route = []
         truck.load = 0
-        
+
     for truck_id in unique_truck_ids: #1, 2, 3, 4
         truck = trucks[truck_id - 1]  # truk berdasarkan truck_id
         for i, current_truck_id in enumerate(chromosome):
@@ -64,9 +64,9 @@ def fitness(chromosome, products, trucks, distances): #1, 2, 3, 2, 1, 4, 4, 1, 3
                     truck.load += product.weight  # total berat produk ke muatan truk
                     shipping_cost = calculate_shipping_cost(product, truck.route, distances)  #total biaya pengiriman barang dari semua rute di slh satu truk
                     fuel_cost = calculate_fuel_cost(truck, truck.route, distances)  #total biaya bensin dari semua rute di slh satu truk
-                    total_profit += shipping_cost - fuel_cost 
-        # print(f"Truck {truck.id}: {truck.route} shipping cost: {shipping_cost} fuel cost: {fuel_cost}") 
-                
+                    total_profit += shipping_cost - fuel_cost
+        # print(f"Truck {truck.id}: {truck.route} shipping cost: {shipping_cost} fuel cost: {fuel_cost}")
+
     for truck in trucks:
         if truck.load > truck.max_load:
             return 100 #kenapa kok gak 0? menghindari NoneType error
@@ -75,23 +75,30 @@ def fitness(chromosome, products, trucks, distances): #1, 2, 3, 2, 1, 4, 4, 1, 3
 
 
 #
-def uniform_crossover(parent1, parent2):
+def uniform_crossover(parent1, parent2, crossover_rate):
     length = len(parent1)
     child1 = [-1] * length  # -1 artinya empty
     child2 = [-1] * length
-    
+
     for i in range(length):
-        if random.random() < 0.5:  # 50% probabilitas milih dari parent1
+        if random.random() < crossover_rate:  #kalau dibawah 0.5 index di child akan sama dengan parent1 di index tsb
             # print("else",i)
             child1[i] = parent1[i]
             child2[i] = parent2[i]
-        else:  # 50% probabilitas milih dari parent2
+        else:
+            # print("else",i)
             child1[i] = parent2[i]
             child2[i] = parent1[i]
-    
+
     return child1, child2
 
-    
+def elitism(population, fitnesses):
+    #memasangkan setiap chromosome dari populasi berdasarkan fitness-nya
+    population_with_fitness = list(zip(population, fitnesses))
+    #sortir populasi dengan patokan fitnessnya (descending order)
+    sorted_population = sorted(population_with_fitness, key=lambda x: x[1], reverse=True)
+    #mengambil 2 chromosome teratas by fitness
+    return [chromosome for chromosome, _ in sorted_population[:2]]
 
 def roulette_wheel_selection(population, fitnesses):
     total_fitness = sum(fitnesses)
@@ -108,7 +115,7 @@ def mutate(chromosome, mutation_rate):
         # dua titik acak
         start = random.randint(0, len(chromosome) - 2)
         end = random.randint(start + 1, len(chromosome) - 1)
-        
+
         chromosome[start:end+1] = reversed(chromosome[start:end+1])
 
 
@@ -117,7 +124,7 @@ def genetic_algorithm(products, trucks, distances, population_size, generations,
     population = []
     best_fitness_over_time = []
     average_fitness_over_time = []
-    
+
     population.append([4, 1, 4, 1, 2, 1, 2, 3, 4, 1])
     population.append([1, 2, 3, 4, 1, 2, 3, 4, 4, 4])
     population.append([4, 3, 4, 1, 2, 3, 4, 1, 2, 3])
@@ -134,41 +141,46 @@ def genetic_algorithm(products, trucks, distances, population_size, generations,
             average_fitness_over_time.append(average_fitness)
             print(f"Generation {generation+1}: Best fitness = {best_fitness}, Average fitness = {average_fitness}")
             print(f"Population: {population}")
+
             
             new_population = []
+            #copy kromosom yang unggul (elitism) ke populasi baru, sisanya menggunakan roulette wheel
+            elite_chromosomes = elitism(population, fitnesses)
+            new_population.extend(elite_chromosomes)
+
             for _ in range(population_size // 2): #kenapa bagi 2? karena setiap iterasi crossover menghasilkan 2 child
                 parent1 = roulette_wheel_selection(population, fitnesses)
                 parent2 = roulette_wheel_selection(population, fitnesses)
-                
-                if random.random() < crossover_rate: #(0 - 1)
-                    child1,child2 = uniform_crossover(parent1, parent2)
+
+                child1,child2 = uniform_crossover(parent1, parent2, crossover_rate)
                 
                 # if generation < generations - 1: #jangan mutate di generasi terakhir
                 #     mutate(child1, mutation_rate)
                 #     mutate(child2, mutation_rate)
-                    
+                
                 mutate(child1, mutation_rate)
                 mutate(child2, mutation_rate)
-                
+
                 new_population.extend([child1, child2])
-                
+
             population = new_population
-            
+
         except Exception as e:
             continue
 
     if best_fitness is None:
         print("no valid fitness found.")
         return None
-    
+
     plt.plot(range(generations), best_fitness_over_time, label='Best Fitness')
     plt.plot(range(generations), average_fitness_over_time, label='Average Fitness')
     plt.xlabel('Generations')
     plt.ylabel('Fitness')
     plt.title(f'Grafik Fitness selama {generations} Generasi')
     plt.legend()
+    plt.grid(True)
     plt.show()
-    
+
     return best_fitness
 
 products = [
@@ -201,4 +213,4 @@ distances = {
     "CityE": {"CityA": 300, "CityB": 200, "CityC": 150, "CityD": 100, "CityE": 0}
 }
 
-genetic_algorithm(products, trucks, distances, population_size=10, generations=10, crossover_rate=0.7, mutation_rate=0.2)
+genetic_algorithm(products, trucks, distances, population_size=10, generations=10, crossover_rate=0.5, mutation_rate=0.2)
