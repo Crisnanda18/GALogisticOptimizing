@@ -86,7 +86,6 @@ def uniform_crossover(parent1, parent2):
             child1[i] = parent1[i]
             child2[i] = parent2[i]
         else:  # 50% probabilitas milih dari parent2
-            # print("else",i)
             child1[i] = parent2[i]
             child2[i] = parent1[i]
     
