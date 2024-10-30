@@ -122,6 +122,7 @@ def mutate(chromosome, mutation_rate):
 
 def genetic_algorithm(products, trucks, distances, population_size, generations, crossover_rate, mutation_rate):
     population = []
+    all_solutions = []
     best_fitness_over_time = []
     average_fitness_over_time = []
 
@@ -139,6 +140,7 @@ def genetic_algorithm(products, trucks, distances, population_size, generations,
             average_fitness = sum(fitnesses) / len(fitnesses)
             best_fitness_over_time.append(best_fitness)
             average_fitness_over_time.append(average_fitness)
+            all_solutions.append(population[fitnesses.index(best_fitness)])
             print(f"Generation {generation+1}: Best fitness = {best_fitness}, Average fitness = {average_fitness}")
             print(f"Population: {population}")
 
@@ -148,7 +150,7 @@ def genetic_algorithm(products, trucks, distances, population_size, generations,
             elite_chromosomes = elitism(population, fitnesses)
             new_population.extend(elite_chromosomes)
 
-            for _ in range(population_size // 2): #kenapa bagi 2? karena setiap iterasi crossover menghasilkan 2 child
+            for _ in range((population_size // 2)-1): #kenapa bagi 2 - 1? karena setiap iterasi crossover menghasilkan 2 child
                 parent1 = roulette_wheel_selection(population, fitnesses)
                 parent2 = roulette_wheel_selection(population, fitnesses)
 
@@ -180,6 +182,10 @@ def genetic_algorithm(products, trucks, distances, population_size, generations,
     plt.legend()
     plt.grid(True)
     plt.show()
+    
+    best_solution = all_solutions[best_fitness_over_time.index(best_fitness)]
+    best_fitness = fitness(best_solution, products, trucks, distances)
+    print(f"Best solution: {best_solution} dengan fitness {best_fitness}")
 
     return best_fitness
 
@@ -213,4 +219,4 @@ distances = {
     "CityE": {"CityA": 300, "CityB": 200, "CityC": 150, "CityD": 100, "CityE": 0}
 }
 
-genetic_algorithm(products, trucks, distances, population_size=10, generations=10, crossover_rate=0.5, mutation_rate=0.2)
+genetic_algorithm(products, trucks, distances, population_size=10, generations=3, crossover_rate=0.5, mutation_rate=0.2)
